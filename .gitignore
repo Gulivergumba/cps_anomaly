@@ -1,0 +1,8 @@
+secrets
+node_modules
+*.swp
+__pycache__/
+.idea/
+venv
+Procfile
+.swo

@@ -1,0 +1,50 @@
+{% extends 'bootstrap/base.html' %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block styles %}
+  {{ super() }}
+  <link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+  <link href = "https://fonts.googleapis.com/icon?family=Material+Icons" rel = "stylesheet">
+  <script src="https://apis.google.com/js/platform.js" async defer></script>
+  <meta name="google-signin-client_id" content="504831725379-9ar1r8njo1jchjuoo6bj6tmg6ke15ebb.apps.googleusercontent.com">
+  <style>
+    body {
+      background: white;
+      font-family: 'Open Sans', sans-serif;
+      padding-bottom:100px;
+    }
+  </style>
+{% endblock %}
+
+{% block title %}
+Anomaly Detection
+{% endblock %}
+
+{% block content %}
+<div class="container" align="center">
+  <h1>Anomaly Detection</h1>
+</div>
+<div class="container" align="center">
+   <a class="button" href="/logout">Logout</a>
+</div>
+<div align="center" style="width:90%" class="container">
+<form method="post">
+<div class="row">
+  <div class="col">
+     {{ wtf.form_field(account_form.select, class='form-select',  size=15, style="width: 100%") }}
+  </div>
+  <div class="col">
+     {{ wtf.form_field(property_form.select, class='form-select', size=15, style="width: 100%") }}
+  </div>
+  <div class="col"> 
+     {{ wtf.form_field(view_form.select, class='form-select', size=15, style="width: 100%") }}
+  </div>
+</div>
+</form>
+<form method="post">
+<div style="width:100%; text-align:center;">
+<input type="submit" name="submit" value="Initiate Anomaly Detection">
+</div>
+</form>
+</div>
+{% endblock %}

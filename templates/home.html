@@ -1,0 +1,30 @@
+{% extends 'bootstrap/base.html' %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block styles %}
+  {{ super() }}
+  <link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+  <link href = "https://fonts.googleapis.com/icon?family=Material+Icons" rel = "stylesheet">
+  <script src="https://apis.google.com/js/platform.js" async defer></script>
+  <meta name="google-signin-client_id" content="504831725379-9ar1r8njo1jchjuoo6bj6tmg6ke15ebb.apps.googleusercontent.com">
+  <style>
+    body { 
+      background: white; 
+      font-family: 'Open Sans', sans-serif;
+      padding-bottom:100px;
+    }  
+  </style>
+{% endblock %}
+
+{% block title %}
+Anomaly Detection
+{% endblock %}
+
+{% block content %}
+<div class="container" align="center">
+  <h1>Anomaly Detection</h1>
+  <a class="button" href="/login">
+  <img src="static/btn_google_signin_light_normal_web.png" height="36">
+  </a>
+</div>
+{% endblock %}
