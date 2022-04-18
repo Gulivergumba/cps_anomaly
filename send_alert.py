@@ -1,72 +1,69 @@
-import db, json
+import db
+import json
 import psycopg2.extras
 from anomaly_user import AnomalyUser
-import google_analytics_user
-
-class anomaly_class():
-    def __init__(self, date, reason, user_id, account_id, property_id, view_id, sent=False):
-        
-        self.date = date
-        self.reason = reason
-        self.user_id = user_id
-        self.account_id = account_id
-        self.property_id = property_id
-        self.view_id = view_id
-        self.sent = sent
+from google_analytics_user import GoogleAnalyticsUser
 
 
-class detections():
-    def __init__(self, anomaly_list=[]):
-        self.anomaly_list=anomaly_list
+def get_anomalies():
+    with db.con:
+        cursor = db.con.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cursor.execute("SELECT * FROM anomaly WHERE SENT = FALSE")
 
-    @staticmethod
-    def get_anomalies():
-        with db.con:
-            cursor = db.con.cursor(cursor_factory=psycopg2.extras.DictCursor)
-            cursor.execute("SELECT * FROM anomaly WHERE SENT = FALSE")
+        anomaly_list = []
+        for row in cursor:
+            # TODO: Check if we can just append the row
+            anomaly_list.append({
+                'date': row[0],
+                'reason': row[1],
+                'user_id': row[2],
+                'account_id': row[3],
+                'property_id': row[4],
+                'view_id': row[5],
+                'sent': row[6]})
 
-            anomaly_list = []
-            for row in cursor:
-                 anomaly_list.append(anomaly_class(row[0],row[1],row[2],row[3],row[4],row[5],row[6]))
-            
-            result = detections(anomaly_list)
-            return result
+        result = anomaly_list
+        return result
 
 
 def send_mails():
-    my_detections = detections.get_anomalies()
-    
-    for anomaly in my_detections.anomaly_list:
-        current_user = AnomalyUser.get(anomaly.user_id)
-        my_ga_user = ga_loader.GoogleAnalyticsUser(token=json.loads(current_user.code))
-        
-        #GETTING NAMES OF CURRENT ACCOUNT, PROPERTY, VIEW SHOULD BE PART OF GA LOADER
+    my_detection_list = get_anomalies()
 
-        mail_subject = "New Anomaly Detection - "+str(anomaly.date)
-        mail_body = "Dear Anomaly Detection User,\n\nOn "+str(anomaly.date)+" we detected an anomaly in your data. "
-        mail_body += "We observed: "+anomaly.reason+". The observation was made for the following environment:\n\n"
+    for anomaly in my_detection_list:
+        current_user = AnomalyUser.get(anomaly['user_id'])
+        my_ga_user = GoogleAnalyticsUser(token=json.loads(current_user.code))
 
-        # add account name 
-        my_ga_user.set_account_list()
+        # GETTING NAMES OF CURRENT ACCOUNT, PROPERTY, VIEW SHOULD BE PART OF GA LOADER
+
+        mail_subject = "New Anomaly Detection - " + str(anomaly['date'])
+        mail_body = "Dear Anomaly Detection User,\n\nOn " + str(anomaly['date']) \
+                    + " we detected an anomaly in your data. " \
+                    + "We observed: " + anomaly['reason'] \
+                    + ". The observation was made for the following environment:\n\n"
+
+        # add account name
         account_list = my_ga_user.get_account_names()
-        mail_body += "Account: "+account_list[anomaly.account_id]+"\n"
+        mail_body += "Account: " + account_list[anomaly['account_id']] + "\n"
 
         # add property name
-        my_ga_user.set_property_list(anomaly.account_id)
-        property_list = my_ga_user.get_property_names()
-        mail_body += "Property: "+property_list[anomaly.property_id]+"\n"
+        property_list = my_ga_user.get_property_names(selected_account=anomaly['account_id'])
+        mail_body += "Property: " + property_list[anomaly['property_id']] + "\n"
 
         # add view name
-        my_ga_user.set_view_list(anomaly.property_id)
-        view_list = my_ga_user.get_view_names()
+        view_list = my_ga_user.get_view_names(
+            selected_account=anomaly['account_id'],
+            selected_property=anomaly['property_id']
+        )
         if view_list:
-            mail_body += "View: "+view_list[anomaly.view_id]+"\n"
-
+            mail_body += "View: " + view_list[anomaly['view_id']] + "\n"
 
         mail_body += "\nBest regards,\nYour Cross Platform Solutions Team"
 
-        #TODO: send mail 
+        # TODO: send mail
         print(mail_subject)
         print(mail_body)
+
+        # TODO: set anomaly to sent -> might require an anomaly id in the database
+
 
 send_mails()
