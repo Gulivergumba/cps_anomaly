@@ -1,7 +1,7 @@
 import db, json
 import psycopg2.extras
-from user import User
-import ga_loader
+from anomaly_user import AnomalyUser
+import google_analytics_user
 
 class anomaly_class():
     def __init__(self, date, reason, user_id, account_id, property_id, view_id, sent=False):
@@ -37,8 +37,8 @@ def send_mails():
     my_detections = detections.get_anomalies()
     
     for anomaly in my_detections.anomaly_list:
-        current_user = User.get(anomaly.user_id)
-        my_ga_user = ga_loader.ga_user(token=json.loads(current_user.code))
+        current_user = AnomalyUser.get(anomaly.user_id)
+        my_ga_user = ga_loader.GoogleAnalyticsUser(token=json.loads(current_user.code))
         
         #GETTING NAMES OF CURRENT ACCOUNT, PROPERTY, VIEW SHOULD BE PART OF GA LOADER
 
