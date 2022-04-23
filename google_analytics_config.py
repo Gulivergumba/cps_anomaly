@@ -11,6 +11,9 @@ google_analytics_4_base_url = "https://analyticsadmin.googleapis.com/v1alpha"
 
 flask_secret_key = os.environ.get("FLASK_SECRET_KEY")
 
+google_mail_user = os.environ.get("GOOGLE_MAIL_USER")
+google_mail_password = os.environ.get("GOOGLE_MAIL_PASSWORD")
+
 
 def get_google_provider_cfg():
     return requests.get(google_discovery_url).json()

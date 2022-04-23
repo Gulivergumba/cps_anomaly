@@ -5,7 +5,7 @@ import json
 
 # Internal imports
 from anomaly_user import AnomalyUser
-from detection_config import dc
+from detection_config import AnomalyConfig
 from google_analytics_user import GoogleAnalyticsUser
 import google_analytics_config as ga
 
@@ -56,10 +56,10 @@ def select():
 
     if "submit" in request.form:
         # TODO: Rename dc (detection_config)
-        dc.add_config(current_user,
-                      session['account_id'],
-                      session['property_id'],
-                      session['view_id'])
+        AnomalyConfig.add_config(current_user,
+                                 session['account_id'],
+                                 session['property_id'],
+                                 session['view_id'])
         return redirect(url_for("success"))
 
     selection = request.form.getlist('select')
@@ -100,12 +100,11 @@ def select():
 
 @app.route("/success")
 def success():
-
     current_user = 0  # replace in login function
     my_user = AnomalyUser.get(current_user)  # Security risk?
 
     my_ga_user = GoogleAnalyticsUser(token=json.loads(my_user.code))
-    config_list = dc.get_config(current_user)
+    config_list = AnomalyConfig.get_config(current_user)
 
     data = []
     for account_id, property_id, view_id in config_list:
@@ -133,12 +132,12 @@ def login():
     # scopes that let you retrieve user's profile from Google
     # noinspection PyNoneFunctionAssignment
     request_uri = client.prepare_request_uri(
-        authorization_endpoint,
+        uri=authorization_endpoint,
         redirect_uri=request.base_url + "/callback",
         scope=ga.google_access_scope,
         access_type="offline",
     )
-    print(">>>>> SHOULD BE NONE:", request_uri)
+
     return redirect(request_uri)
 
 

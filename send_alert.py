@@ -1,69 +1,91 @@
 import db
 import json
+from smtplib import SMTP_SSL, SMTPException
 import psycopg2.extras
 from anomaly_user import AnomalyUser
 from google_analytics_user import GoogleAnalyticsUser
+import google_analytics_config as google_config
 
 
-def get_anomalies():
+def get_anomalies_no_mail_sent():
     with db.con:
-        cursor = db.con.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cursor = db.con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("SELECT * FROM anomaly WHERE SENT = FALSE")
 
-        anomaly_list = []
+        send_mail_list = []
         for row in cursor:
-            # TODO: Check if we can just append the row
-            anomaly_list.append({
-                'date': row[0],
-                'reason': row[1],
-                'user_id': row[2],
-                'account_id': row[3],
-                'property_id': row[4],
-                'view_id': row[5],
-                'sent': row[6]})
+            if not row["sent"]:
+                send_mail_list.append(row)
 
-        result = anomaly_list
+        result = send_mail_list
         return result
 
 
-def send_mails():
-    my_detection_list = get_anomalies()
+def set_anomaly_to_mail_sent(anomaly_id):
+    with db.con:
+        cursor = db.con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute(f"UPDATE anomaly SET SENT = TRUE WHERE anomaly_id = {anomaly_id}")
 
-    for anomaly in my_detection_list:
+
+def get_email_address(account_id):
+    with db.con:
+        cursor = db.con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute(f"SELECT email FROM users WHERE CAST(id AS INTEGER) = {account_id}")
+        for row in cursor:
+            return row['email']
+        return None
+
+
+def send_email(receipient, subject, body):
+    message = f"""From: Cross Platform Solutions GmbH <{google_config.google_mail_user}>
+To: <{receipient[0]}>
+Subject: {subject}
+
+{body}
+"""
+    with SMTP_SSL('smtp.gmail.com', 465) as smtp:
+        try:
+            smtp.login(user=google_config.google_mail_user, password=google_config.google_mail_password)
+            smtp.sendmail(from_addr=google_config.google_mail_user, to_addrs=receipient, msg=message)
+
+        except SMTPException:
+            return False
+    return True
+
+
+def main():
+    send_mail_list = get_anomalies_no_mail_sent()
+
+    number_of_mails_sent = 0
+    for anomaly in send_mail_list:
         current_user = AnomalyUser.get(anomaly['user_id'])
         my_ga_user = GoogleAnalyticsUser(token=json.loads(current_user.code))
 
         # GETTING NAMES OF CURRENT ACCOUNT, PROPERTY, VIEW SHOULD BE PART OF GA LOADER
-
-        mail_subject = "New Anomaly Detection - " + str(anomaly['date'])
-        mail_body = "Dear Anomaly Detection User,\n\nOn " + str(anomaly['date']) \
-                    + " we detected an anomaly in your data. " \
-                    + "We observed: " + anomaly['reason'] \
-                    + ". The observation was made for the following environment:\n\n"
-
-        # add account name
         account_list = my_ga_user.get_account_names()
-        mail_body += "Account: " + account_list[anomaly['account_id']] + "\n"
-
-        # add property name
         property_list = my_ga_user.get_property_names(selected_account=anomaly['account_id'])
-        mail_body += "Property: " + property_list[anomaly['property_id']] + "\n"
-
-        # add view name
         view_list = my_ga_user.get_view_names(
             selected_account=anomaly['account_id'],
             selected_property=anomaly['property_id']
         )
+
+        email_subject = f"New Anomaly Detection - {anomaly['date']}"
+        email_body = f"Dear Anomaly Detection User,\n\nOn {anomaly['date']} we detected an anomaly in your data. " \
+                     f"We observed: {anomaly['reason']}. The observation was made for the following environment:\n\n" \
+                     f"Account: {account_list[anomaly['account_id']]}\n" \
+                     f"Property: {property_list[anomaly['property_id']]}\n"
         if view_list:
-            mail_body += "View: " + view_list[anomaly['view_id']] + "\n"
+            email_body += f"View: {view_list[anomaly['view_id']]}\n"
+        email_body += "\nBest regards,\nYour Cross Platform Solutions Team"
 
-        mail_body += "\nBest regards,\nYour Cross Platform Solutions Team"
+        email = get_email_address(anomaly['account_id'])
+        if send_email(receipient=[email], subject=email_subject, body=email_body):
+            set_anomaly_to_mail_sent(anomaly['anomaly_id'])
+            number_of_mails_sent += 1
+    if number_of_mails_sent > 0:
+        print(f"Successfully sent {number_of_mails_sent} mail(s).")
+    else:
+        print("No emails needed to be sent.")
 
-        # TODO: send mail
-        print(mail_subject)
-        print(mail_body)
-
-        # TODO: set anomaly to sent -> might require an anomaly id in the database
-
-
-send_mails()
+if __name__ == '__main__':
+    main()
